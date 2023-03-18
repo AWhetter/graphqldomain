@@ -30,8 +30,15 @@ dependencies = [
     "sphinx>=4.0",
 ]
 
+[project.optional-dependencies]
+doc = [
+    "furo",
+    "sphinx",
+]
+
 [project.urls]
 Source = "https://github.com/AWhetter/graphqldomain"
+Documentation = "https://graphqldomain.readthedocs.org"
 
 [tool.pylint]
 disable = "R,unused-argument"
