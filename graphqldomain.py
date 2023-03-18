@@ -29,7 +29,7 @@ from sphinx.util.docfields import GroupedField
 from sphinx.util import logging
 from sphinx.util.nodes import make_refnode
 
-__version__ = "0.0.1"
+__version__ = "0.1.0"
 logger = logging.getLogger(__name__)
 
 
