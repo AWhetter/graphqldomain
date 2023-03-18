@@ -36,7 +36,7 @@ see Sphinx's documentation on
 Installation
 ~~~~~~~~~~~~
 
-```graphqldomain`` can be installed through pip:
+``graphqldomain`` can be installed through pip:
 
 .. code-block:: bash
 
