@@ -46,7 +46,8 @@ class ObjectEntry(NamedTuple):
     """The identifier of the declared object.
 
     This is the fully qualified name of the type.
-    They are already guaranteed to be unique or they would create conflicts in the schema.
+    They are already guaranteed to be unique
+    or they would create conflicts in the schema.
     """
 
 
@@ -832,7 +833,8 @@ class GraphQLDomain(Domain):
                     other_docname = self.env.doc2path(other_entry[0])
                     this_docname = self.env.doc2path(entry[0])
                     logger.warning(
-                        f"Duplicate GraphQL {typ} type definition {fullname} in {other_docname}, "
+                        f"Duplicate GraphQL {typ} type definition {fullname} "
+                        f"in {other_docname}, "
                         f"other instance is in {this_docname}"
                     )
                 else:
