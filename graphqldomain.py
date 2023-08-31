@@ -12,8 +12,9 @@ from typing import (
 )
 
 from docutils import nodes
-from docutils.nodes import Element
+from docutils.nodes import Element, Node
 from docutils.parsers.rst import Directive, directives
+from docutils.parsers.rst.states import Inliner
 from graphql.language import ast as gql_ast
 from graphql.language.parser import Parser
 from graphql.language.token_kind import TokenKind
@@ -25,12 +26,14 @@ from sphinx.directives import ObjectDescription
 from sphinx.domains import Domain, Index, IndexEntry, ObjType
 from sphinx.environment import BuildEnvironment
 from sphinx.roles import XRefRole
-from sphinx.util.docfields import GroupedField
+from sphinx.util.docfields import GroupedField, TypedField
 from sphinx.util import logging
 from sphinx.util.nodes import make_refnode
+from sphinx.util.typing import OptionSpec, TextlikeNode
 
 __version__ = "0.1.0"
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
+DEFAULT_SCHEMA_NAME = "__gqlschema__"
 
 
 class ObjectEntry(NamedTuple):
@@ -51,19 +54,114 @@ class ObjectEntry(NamedTuple):
     """
 
 
+class OperationTypeField(TypedField):
+    def make_field(
+        self,
+        types: Dict[str, List[Node]],
+        domain: str,
+        items: Tuple,  # type: ignore[type-arg]
+        env: Optional[BuildEnvironment] = None,
+        inliner: Optional[Inliner] = None,
+        location: Optional[Element] = None,
+    ) -> nodes.field:
+        # Sphinx will allow the field to be parsed without a type.
+        # That's not valid GraphQL, so use the default operation names
+        # when the operation type is specified without a name.
+        types.setdefault("query", [nodes.Text("Query")])
+        types.setdefault("mutation", [nodes.Text("Mutation")])
+        types.setdefault("subscription", [nodes.Text("Subscription")])
+        valid_optypes = ("query", "mutation", "subscription")
+
+        fieldname = nodes.field_name("", self.label)
+        bodynode = self.list_type()
+        for fieldarg, value in items:
+            if value and value[0].rawsource:
+                msg = (
+                    f"optype field {fieldarg} has a description, which will be ignored"
+                )
+                LOGGER.warning(msg, type="graphqldomain", subtype="invalid_optype")
+
+            par = nodes.paragraph()
+            par += addnodes.literal_strong(fieldarg, fieldarg)
+            if fieldarg not in valid_optypes:
+                msg = (
+                    f"Invalid operation type '{fieldarg}', "
+                    f"should be one of: {', '.join(valid_optypes)}"
+                )
+                LOGGER.warning(msg, type="graphqldomain", subtype="invalid_optype")
+            else:
+                par += nodes.Text(": ")
+                fieldtype = types[fieldarg]
+                if len(fieldtype) == 1 and isinstance(fieldtype[0], nodes.Text):
+                    typename = fieldtype[0].astext()
+                    par.extend(
+                        self.make_xrefs(
+                            self.typerolename,
+                            domain,
+                            typename,
+                            addnodes.literal_emphasis,
+                            env=env,
+                            inliner=inliner,
+                            location=location,
+                        )
+                    )
+                else:
+                    par += fieldtype
+
+            bodynode += nodes.list_item("", par)
+
+        fieldbody = nodes.field_body("", bodynode)
+        return nodes.field("", fieldname, fieldbody)
+
+    def make_xref(
+        self,
+        rolename: str,
+        domain: str,
+        target: str,
+        innernode: Type[TextlikeNode] = nodes.emphasis,
+        contnode: Optional[Node] = None,
+        env: Optional[BuildEnvironment] = None,
+        inliner: Optional[Inliner] = None,
+        location: Optional[Element] = None,
+    ) -> Node:
+        result = super().make_xref(
+            rolename, domain, target, innernode, contnode, env, inliner, location
+        )
+
+        xref = None
+        if isinstance(result, pending_xref):
+            xref = result
+        elif result.children and isinstance(result.children[0], pending_xref):
+            xref = result.children[0]
+
+        if xref and env:
+            xref["gql:schema"] = env.ref_context.get("gql:schema")
+
+        return result
+
+
+def type_to_xref(
+    target: str, env: BuildEnvironment, reftype: str = "any"
+) -> pending_xref:
+    """Create a pending_xref node, attaching schema context if applicable."""
+    xref = pending_xref(
+        "",
+        nodes.Text(target),
+        refdomain="gql",
+        reftype=reftype,
+        reftarget=target,
+        refspecific=True,
+    )
+    xref["gql:schema"] = env.ref_context.get("gql:schema")
+    return xref
+
+
 class GQLObject(ObjectDescription[Tuple[str, Optional[str]]]):
     """The base class for any GraphQL type."""
 
     option_spec = {
         "noindex": directives.flag,
     }
-    doc_field_types = [
-        GroupedField(
-            "argument",
-            label="Arguments",
-            names=("arg", "argument"),
-        ),
-    ]
 
     obj_type: str
     """The name of the type.
@@ -96,14 +194,7 @@ class GQLObject(ObjectDescription[Tuple[str, Optional[str]]]):
 
             signode += addnodes.desc_sig_operator("", "@")
             directive_name = directive_node.name.value
-            signode += pending_xref(
-                "",
-                nodes.Text(directive_name),
-                refdomain="gql",
-                reftype="directive",
-                reftarget=directive_name,
-                refspecific=True,
-            )
+            signode += type_to_xref(directive_name, self.env, reftype="directive")
 
             self._handle_signature_const_arguments(signode, directive_node.arguments)
 
@@ -214,14 +305,7 @@ class GQLObject(ObjectDescription[Tuple[str, Optional[str]]]):
     ) -> None:
         if isinstance(ast_node, gql_ast.NamedTypeNode):
             type_name = ast_node.name.value
-            signode += pending_xref(
-                "",
-                nodes.Text(type_name),
-                refdomain="gql",
-                reftype="any",
-                reftarget=type_name,
-                refspecific=True,
-            )
+            signode += type_to_xref(type_name, self.env)
         elif isinstance(ast_node, gql_ast.NonNullTypeNode):
             self._handle_signature_type_reference(signode, ast_node.type)
             signode += addnodes.desc_sig_operator("", "!")
@@ -231,6 +315,23 @@ class GQLObject(ObjectDescription[Tuple[str, Optional[str]]]):
             signode += addnodes.desc_sig_operator("", "]")
         else:
             raise TypeError(f"Unknown type node '{type(ast_node)}")
+
+    def _resolve_names(
+        self, name: str, signode: desc_signature
+    ) -> Tuple[str, Optional[str]]:
+        """Use the parenting of objects to resolve the fullname attribute.
+
+        By default an object can only be parented to a schema.
+        Objects that are parented to something other than a schema should
+        inherit from :class:`GQLChildObject`.
+        """
+        parent_name = self.env.ref_context.get("gql:schema")
+        if parent_name:
+            fullname = f"{parent_name}.{name}"
+        else:
+            fullname = name
+        signode["fullname"] = fullname
+        return (fullname, parent_name)
 
 
 class GQLParentObject(GQLObject):
@@ -280,6 +381,14 @@ class GQLField(GQLChildObject):
         https://spec.graphql.org/June2018/#FieldDefinition
     """
 
+    doc_field_types = [
+        GroupedField(
+            "argument",
+            label="Arguments",
+            names=("arg", "argument"),
+        ),
+    ]
+
     def handle_signature(
         self, sig: str, signode: desc_signature
     ) -> Tuple[str, Optional[str]]:
@@ -311,6 +420,13 @@ class GQLDirective(GQLObject):
     """
 
     obj_type = "directive"
+    doc_field_types = [
+        GroupedField(
+            "argument",
+            label="Arguments",
+            names=("arg", "argument"),
+        ),
+    ]
 
     def handle_signature(
         self, sig: str, signode: desc_signature
@@ -343,8 +459,7 @@ class GQLDirective(GQLObject):
 
             signode += nodes.Text(location.value)
 
-        signode["fullname"] = name
-        return (name, None)
+        return self._resolve_names(name, signode)
 
 
 class GQLEnum(GQLParentObject):
@@ -373,8 +488,7 @@ class GQLEnum(GQLParentObject):
 
         self._handle_signature_directives(signode, node.directives)
 
-        signode["fullname"] = name
-        return (name, None)
+        return self._resolve_names(name, signode)
 
 
 class GQLEnumValue(GQLChildObject):
@@ -430,8 +544,7 @@ class GQLInput(GQLParentObject):
 
         self._handle_signature_directives(signode, node.directives)
 
-        signode["fullname"] = name
-        return (name, None)
+        return self._resolve_names(name, signode)
 
 
 class GQLInputField(GQLChildObject):
@@ -493,8 +606,7 @@ class GQLInterface(GQLParentObject):
 
         self._handle_signature_directives(signode, node.directives)
 
-        signode["fullname"] = name
-        return (name, None)
+        return self._resolve_names(name, signode)
 
 
 class GQLInterfaceField(GQLField):
@@ -533,6 +645,55 @@ class GQLScalar(GQLObject):
 
         self._handle_signature_directives(signode, node.directives)
 
+        return self._resolve_names(name, signode)
+
+
+class GQLSchema(GQLParentObject):
+    """Represents the definition of a GraphQL Schema.
+
+    See also:
+        https://spec.graphql.org/June2018/#sec-Schema
+    """
+
+    obj_type = "schema"
+    option_spec: OptionSpec = {
+        "noindex": directives.flag,
+        "name": directives.unchanged,
+    }
+    required_arguments = 0
+    optional_arguments = 1
+    doc_field_types = [
+        OperationTypeField(
+            "operationtypes",
+            label="Operation types",
+            names=("optype",),
+            typerolename="type",
+            typenames=(),
+        ),
+    ]
+
+    def get_signatures(self) -> List[str]:
+        if self.arguments:
+            return super().get_signatures()
+
+        return [""]
+
+    def handle_signature(
+        self, sig: str, signode: desc_signature
+    ) -> Tuple[str, Optional[str]]:
+        prefix = [nodes.Text("schema"), addnodes.desc_sig_space()]
+        signode += addnodes.desc_annotation(str(prefix), "", *prefix)
+
+        directives = sig
+        if directives:
+            parser = Parser(directives, no_location=True)
+            parser.expect_token(TokenKind.SOF)
+            directive_nodes = parser.parse_const_directives()
+            parser.expect_token(TokenKind.EOF)
+
+            self._handle_signature_directives(signode, directive_nodes)
+
+        name = self.options.get("name", DEFAULT_SCHEMA_NAME)
         signode["fullname"] = name
         return (name, None)
 
@@ -573,19 +734,11 @@ class GQLType(GQLParentObject):
                     signode += addnodes.desc_sig_space()
 
                 interface_type = interface.name.value
-                signode += pending_xref(
-                    "",
-                    nodes.Text(interface_type),
-                    refdomain="gql",
-                    reftype="interface",
-                    reftarget=interface_type,
-                    refspecific=True,
-                )
+                signode += type_to_xref(interface_type, self.env, reftype="interface")
 
         self._handle_signature_directives(signode, node.directives)
 
-        signode["fullname"] = name
-        return (name, None)
+        return self._resolve_names(name, signode)
 
 
 class GQLTypeField(GQLField):
@@ -637,17 +790,9 @@ class GQLUnion(GQLObject):
                     signode += addnodes.desc_sig_space()
 
                 member_type = member_node.name.value
-                signode += pending_xref(
-                    "",
-                    nodes.Text(member_type),
-                    refdomain="gql",
-                    reftype="any",
-                    reftarget=member_type,
-                    refspecific=True,
-                )
+                signode += type_to_xref(member_type, self.env)
 
-        signode["fullname"] = name
-        return (name, None)
+        return self._resolve_names(name, signode)
 
 
 class GraphQLSchemaIndex(Index):
@@ -688,6 +833,26 @@ class GraphQLSchemaIndex(Index):
         return (sorted_content, True)
 
 
+class GQLXRefRole(XRefRole):
+    def process_link(
+        self,
+        env: BuildEnvironment,
+        refnode: Element,
+        has_explicit_title: bool,
+        title: str,
+        target: str,
+    ) -> Tuple[str, str]:
+        title, target = super().process_link(
+            env, refnode, has_explicit_title, title, target
+        )
+
+        if not has_explicit_title and title.startswith(f"{DEFAULT_SCHEMA_NAME}."):
+            title = title.split(".", 1)[-1]
+
+        refnode["gql:schema"] = env.ref_context.get("gql:schema")
+        return (title, target)
+
+
 class GraphQLDomain(Domain):
     """The definition of the GraphQL Sphinx Domain."""
 
@@ -702,6 +867,7 @@ class GraphQLDomain(Domain):
         "interface": ObjType("interface", "interface"),
         "interface:field": ObjType("interface-field", "interface"),
         "scalar": ObjType("scalar", "scalar"),
+        "schema": ObjType("schema", "schema"),
         "type": ObjType("type", "type"),
         "type:field": ObjType("type-field", "type"),
         "union": ObjType("union", "union"),
@@ -716,6 +882,7 @@ class GraphQLDomain(Domain):
         "interface": GQLInterface,
         "interface:field": GQLInterfaceField,
         "scalar": GQLScalar,
+        "schema": GQLSchema,
         "type": GQLType,
         "type:field": GQLTypeField,
         "union": GQLUnion,
@@ -725,17 +892,18 @@ class GraphQLDomain(Domain):
     # However this class isn't going to be used for subclassing
     # so violating variance rules is acceptable.
     roles: Dict[str, XRefRole] = {  # type: ignore[assignment]
-        "directive": XRefRole(),
-        "enum": XRefRole(),
-        "enum:value": XRefRole(),
-        "input": XRefRole(),
-        "input:field": XRefRole(),
-        "interface": XRefRole(),
-        "interface:field": XRefRole(),
-        "scalar": XRefRole(),
-        "type": XRefRole(),
-        "type:field": XRefRole(),
-        "union": XRefRole(),
+        "directive": GQLXRefRole(),
+        "enum": GQLXRefRole(),
+        "enum:value": GQLXRefRole(),
+        "input": GQLXRefRole(),
+        "input:field": GQLXRefRole(),
+        "interface": GQLXRefRole(),
+        "interface:field": GQLXRefRole(),
+        "scalar": GQLXRefRole(),
+        "schema": GQLXRefRole(),
+        "type": GQLXRefRole(),
+        "type:field": GQLXRefRole(),
+        "union": GQLXRefRole(),
     }
 
     initial_data: Dict[str, Dict[str, ObjectEntry]] = {
@@ -747,6 +915,7 @@ class GraphQLDomain(Domain):
         "interface": {},
         "interface:field": {},
         "scalar": {},
+        "schema": {},
         "type": {},
         "type:field": {},
         "union": {},
@@ -771,10 +940,25 @@ class GraphQLDomain(Domain):
         node: pending_xref,
         contnode: Element,
     ) -> Optional[Element]:
+        patterns = [target]
+
+        # If the xref was created in the context of the schema,
+        # allow references to other names in the schema
+        # without needing to specify the name of the schema.
+        schema_name = node.get("gql:schema")
+        if schema_name and not target.startswith(f"{schema_name}."):
+            patterns.append(f"{schema_name}.{target}")
+
+        # If the xref was created outside the context of the schema,
+        # allow references to names in the schema with the default name
+        # without needing to use the name of the schema.
+        if not schema_name and not target.startswith(f"{DEFAULT_SCHEMA_NAME}."):
+            patterns.append(f"{DEFAULT_SCHEMA_NAME}.{target}")
+
         for object_type in self.object_types:
             type_data = self.data[object_type]
             for fullname, entry in list(type_data.items()):
-                if fullname == target:
+                if fullname in patterns:
                     # mypy error caused by incomplete docutils type annotations:
                     # https://github.com/python/typeshed/issues/1269
                     return make_refnode(  # type: ignore[no-any-return]
@@ -832,7 +1016,7 @@ class GraphQLDomain(Domain):
                     entry = type_data[fullname]
                     other_docname = self.env.doc2path(other_entry[0])
                     this_docname = self.env.doc2path(entry[0])
-                    logger.warning(
+                    LOGGER.warning(
                         f"Duplicate GraphQL {typ} type definition {fullname} "
                         f"in {other_docname}, "
                         f"other instance is in {this_docname}"

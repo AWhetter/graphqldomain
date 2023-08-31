@@ -24,6 +24,8 @@ Directives
 
         interface2.field2 tests that arguments are parsed
 
+        :argument arg1: arg1 tests that arguments can be documented
+
 
 Roles
 -----

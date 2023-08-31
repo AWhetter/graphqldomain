@@ -58,60 +58,66 @@ https://graphqldomain.readthedocs.io/en/latest/
 
 .. code-block:: rst
 
-   .. gql:directive:: @slow(super: Boolean = false) on FIELD_DEFINITION | ARGUMENT_DEFINITION
+   .. gql:schema::
 
-      Indicates that the usage of this field or argument is slow,
-      and therefore queries with this field or argument should be made sparingly.
+      An example schema.
 
-      :argument super: Whether usage will be super slow, or just a bit slow.
+      :optype Query query:
 
-   .. gql:enum:: CharacterCase
+      .. gql:directive:: @slow(super: Boolean = false) on FIELD_DEFINITION | ARGUMENT_DEFINITION
 
-      The casing of a character.
+         Indicates that the usage of this field or argument is slow,
+         and therefore queries with this field or argument should be made sparingly.
 
-      .. gql:enum:value:: UPPER
+         :argument super: Whether usage will be super slow, or just a bit slow.
 
-         Upper case.
+      .. gql:enum:: CharacterCase
 
-      .. gql:enum:value:: LOWER
+         The casing of a character.
 
-         Lower case.
+         .. gql:enum:value:: UPPER
 
-   .. gql:input:: Point2D
+            Upper case.
 
-      A point in a 2D coordinate system.
+         .. gql:enum:value:: LOWER
 
-      .. gql:input:field:: x: Float
+            Lower case.
 
-         The ``x`` coordinate of the point.
+      .. gql:input:: Point2D
 
-      .. gql:input:field:: y: Float
+         A point in a 2D coordinate system.
 
-         The ``y`` coordinate of the point.
+         .. gql:input:field:: x: Float
 
-   .. gql:interface:: NamedEntity
+            The ``x`` coordinate of the point.
 
-      An entity with a name.
+         .. gql:input:field:: y: Float
 
-      .. gql:interface:field:: name(lower: Boolean = false): String
+            The ``y`` coordinate of the point.
 
-         The name of the entity.
+      .. gql:interface:: NamedEntity
 
-         :argument lower: Whether to lowercase the name or not.
+         An entity with a name.
 
-   .. gql:type:: Person implements NamedEntity
+         .. gql:interface:field:: name(lower: Boolean = false): String
 
-      A human person.
+            The name of the entity.
 
-      .. gql:type:field:: age: Int
+            :argument lower: Whether to lowercase the name or not.
 
-         How old the person is in years.
+      .. gql:type:: Person implements NamedEntity
 
-      .. gql:type:field:: picture: Url
+         A human person.
 
-   .. gql:union:: Centre = Person | Point2D
+         .. gql:type:field:: age: Int
 
-      A possible centre of the universe.
+            How old the person is in years.
+
+         .. gql:type:field:: picture: Url
+
+      .. gql:union:: Centre = Person | Point2D
+
+         A possible centre of the universe.
 
 
 Contributing
@@ -137,7 +143,7 @@ You can check your formatting using black's check mode:
 
 .. code-block:: bash
 
-    tox -e formatting
+    tox -e format
 
 You can also get black to format your changes for you:
 
