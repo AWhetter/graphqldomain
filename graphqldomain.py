@@ -1,15 +1,7 @@
 """A GraphQL domain for Sphinx."""
-from typing import (
-    Dict,
-    Iterable,
-    Iterator,
-    List,
-    NamedTuple,
-    Optional,
-    Sequence,
-    Tuple,
-    Type,
-)
+
+from collections.abc import Iterable, Iterator, Sequence, Set
+from typing import ClassVar, NamedTuple, Optional
 
 from docutils import nodes
 from docutils.nodes import Element, Node
@@ -57,9 +49,9 @@ class ObjectEntry(NamedTuple):
 class OperationTypeField(TypedField):
     def make_field(
         self,
-        types: Dict[str, List[Node]],
+        types: dict[str, list[Node]],
         domain: str,
-        items: Tuple,  # type: ignore[type-arg]
+        items: tuple,  # type: ignore[type-arg]
         env: Optional[BuildEnvironment] = None,
         inliner: Optional[Inliner] = None,
         location: Optional[Element] = None,
@@ -118,7 +110,7 @@ class OperationTypeField(TypedField):
         rolename: str,
         domain: str,
         target: str,
-        innernode: Type[TextlikeNode] = nodes.emphasis,
+        innernode: type[TextlikeNode] = nodes.emphasis,
         contnode: Optional[Node] = None,
         env: Optional[BuildEnvironment] = None,
         inliner: Optional[Inliner] = None,
@@ -156,10 +148,10 @@ def type_to_xref(
     return xref
 
 
-class GQLObject(ObjectDescription[Tuple[str, Optional[str]]]):
+class GQLObject(ObjectDescription[tuple[str, Optional[str]]]):
     """The base class for any GraphQL type."""
 
-    option_spec = {
+    option_spec: ClassVar[OptionSpec] = {
         "noindex": directives.flag,
     }
 
@@ -173,17 +165,17 @@ class GQLObject(ObjectDescription[Tuple[str, Optional[str]]]):
     parent_type: Optional[str] = None
 
     def add_target_and_index(
-        self, name: Tuple[str, Optional[str]], sig: str, signode: desc_signature
+        self, name: tuple[str, Optional[str]], sig: str, signode: desc_signature
     ) -> None:
         node_id = signode["fullname"]
 
         signode["ids"].append(node_id)
         if "noindex" not in self.options:
-            self.env.domaindata["gql"][self.obj_type][
-                signode["fullname"]
-            ] = ObjectEntry(
-                self.env.docname,
-                node_id,
+            self.env.domaindata["gql"][self.obj_type][signode["fullname"]] = (
+                ObjectEntry(
+                    self.env.docname,
+                    node_id,
+                )
             )
 
     def _handle_signature_directives(
@@ -318,7 +310,7 @@ class GQLObject(ObjectDescription[Tuple[str, Optional[str]]]):
 
     def _resolve_names(
         self, name: str, signode: desc_signature
-    ) -> Tuple[str, Optional[str]]:
+    ) -> tuple[str, Optional[str]]:
         """Use the parenting of objects to resolve the fullname attribute.
 
         By default an object can only be parented to a schema.
@@ -364,7 +356,7 @@ class GQLChildObject(GQLObject):
 
     def _resolve_names(
         self, name: str, signode: desc_signature
-    ) -> Tuple[str, Optional[str]]:
+    ) -> tuple[str, Optional[str]]:
         parent_name = self.env.ref_context.get(f"gql:{self.parent_type}")
         if parent_name:
             fullname = f"{parent_name}.{name}"
@@ -391,7 +383,7 @@ class GQLField(GQLChildObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> Tuple[str, Optional[str]]:
+    ) -> tuple[str, Optional[str]]:
         parser = Parser(sig, no_location=True)
         parser.expect_token(TokenKind.SOF)
         node = parser.parse_field_definition()
@@ -430,7 +422,7 @@ class GQLDirective(GQLObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> Tuple[str, Optional[str]]:
+    ) -> tuple[str, Optional[str]]:
         # https://spec.graphql.org/June2018/#sec-Type-System.Directives
         parser = Parser("directive " + sig, no_location=True)
         parser.expect_token(TokenKind.SOF)
@@ -473,7 +465,7 @@ class GQLEnum(GQLParentObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> Tuple[str, Optional[str]]:
+    ) -> tuple[str, Optional[str]]:
         # https://spec.graphql.org/June2018/#sec-Interfaces
         parser = Parser("enum " + sig, no_location=True)
         parser.expect_token(TokenKind.SOF)
@@ -503,7 +495,7 @@ class GQLEnumValue(GQLChildObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> Tuple[str, Optional[str]]:
+    ) -> tuple[str, Optional[str]]:
         # https://spec.graphql.org/June2018/#EnumValueDefinition
         parser = Parser(sig, no_location=True)
         parser.expect_token(TokenKind.SOF)
@@ -529,7 +521,7 @@ class GQLInput(GQLParentObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> Tuple[str, Optional[str]]:
+    ) -> tuple[str, Optional[str]]:
         # https://spec.graphql.org/June2018/#sec-Input-Objects
         parser = Parser("input " + sig, no_location=True)
         parser.expect_token(TokenKind.SOF)
@@ -559,7 +551,7 @@ class GQLInputField(GQLChildObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> Tuple[str, Optional[str]]:
+    ) -> tuple[str, Optional[str]]:
         parser = Parser(sig, no_location=True)
         parser.expect_token(TokenKind.SOF)
         node = parser.parse_input_value_def()
@@ -591,7 +583,7 @@ class GQLInterface(GQLParentObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> Tuple[str, Optional[str]]:
+    ) -> tuple[str, Optional[str]]:
         # https://spec.graphql.org/June2018/#sec-Interfaces
         parser = Parser("interface " + sig, no_location=True)
         parser.expect_token(TokenKind.SOF)
@@ -631,7 +623,7 @@ class GQLScalar(GQLObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> Tuple[str, Optional[str]]:
+    ) -> tuple[str, Optional[str]]:
         parser = Parser("scalar " + sig, no_location=True)
         parser.expect_token(TokenKind.SOF)
         node = parser.parse_scalar_type_definition()
@@ -656,7 +648,7 @@ class GQLSchema(GQLParentObject):
     """
 
     obj_type = "schema"
-    option_spec: OptionSpec = {
+    option_spec: ClassVar[OptionSpec] = {
         "noindex": directives.flag,
         "name": directives.unchanged,
     }
@@ -672,7 +664,7 @@ class GQLSchema(GQLParentObject):
         ),
     ]
 
-    def get_signatures(self) -> List[str]:
+    def get_signatures(self) -> list[str]:
         if self.arguments:
             return super().get_signatures()
 
@@ -680,7 +672,7 @@ class GQLSchema(GQLParentObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> Tuple[str, Optional[str]]:
+    ) -> tuple[str, Optional[str]]:
         prefix = [nodes.Text("schema"), addnodes.desc_sig_space()]
         signode += addnodes.desc_annotation(str(prefix), "", *prefix)
 
@@ -709,7 +701,7 @@ class GQLType(GQLParentObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> Tuple[str, Optional[str]]:
+    ) -> tuple[str, Optional[str]]:
         # https://spec.graphql.org/June2018/#sec-Objects
         parser = Parser("type " + sig, no_location=True)
         parser.expect_token(TokenKind.SOF)
@@ -763,7 +755,7 @@ class GQLUnion(GQLObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> Tuple[str, Optional[str]]:
+    ) -> tuple[str, Optional[str]]:
         parser = Parser("union " + sig, no_location=True)
         parser.expect_token(TokenKind.SOF)
         node = parser.parse_union_type_definition()
@@ -807,8 +799,8 @@ class GraphQLSchemaIndex(Index):
 
     def generate(
         self, docnames: Optional[Iterable[str]] = None
-    ) -> Tuple[List[Tuple[str, List[IndexEntry]]], bool]:
-        content: Dict[str, List[IndexEntry]] = {}
+    ) -> tuple[list[tuple[str, list[IndexEntry]]], bool]:
+        content: dict[str, list[IndexEntry]] = {}
 
         for fullname, _, objtype, docname, node_id, __ in sorted(
             self.domain.get_objects()
@@ -841,7 +833,7 @@ class GQLXRefRole(XRefRole):
         has_explicit_title: bool,
         title: str,
         target: str,
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         title, target = super().process_link(
             env, refnode, has_explicit_title, title, target
         )
@@ -858,7 +850,7 @@ class GraphQLDomain(Domain):
 
     name = "gql"
     label = "GraphQL"
-    object_types: Dict[str, ObjType] = {
+    object_types: dict[str, ObjType] = {
         "directive": ObjType("directive", "directive"),
         "enum": ObjType("enum", "enum"),
         "enum:value": ObjType("enum-value", "enum"),
@@ -873,7 +865,7 @@ class GraphQLDomain(Domain):
         "union": ObjType("union", "union"),
     }
 
-    directives: Dict[str, Type[Directive]] = {
+    directives: dict[str, type[Directive]] = {
         "directive": GQLDirective,
         "enum": GQLEnum,
         "enum:value": GQLEnumValue,
@@ -891,7 +883,7 @@ class GraphQLDomain(Domain):
     # mypy complains because many types are allowed other than XRefRole.
     # However this class isn't going to be used for subclassing
     # so violating variance rules is acceptable.
-    roles: Dict[str, XRefRole] = {  # type: ignore[assignment]
+    roles: dict[str, XRefRole] = {  # type: ignore[assignment]
         "directive": GQLXRefRole(),
         "enum": GQLXRefRole(),
         "enum:value": GQLXRefRole(),
@@ -906,7 +898,7 @@ class GraphQLDomain(Domain):
         "union": GQLXRefRole(),
     }
 
-    initial_data: Dict[str, Dict[str, ObjectEntry]] = {
+    initial_data: dict[str, dict[str, ObjectEntry]] = {
         "directive": {},
         "enum": {},
         "enum:value": {},
@@ -959,9 +951,7 @@ class GraphQLDomain(Domain):
             type_data = self.data[object_type]
             for fullname, entry in list(type_data.items()):
                 if fullname in patterns:
-                    # mypy error caused by incomplete docutils type annotations:
-                    # https://github.com/python/typeshed/issues/1269
-                    return make_refnode(  # type: ignore[no-any-return]
+                    return make_refnode(
                         builder,
                         fromdocname,
                         entry.docname,
@@ -980,7 +970,7 @@ class GraphQLDomain(Domain):
         target: str,
         node: pending_xref,
         contnode: Element,
-    ) -> List[Tuple[str, Element]]:
+    ) -> list[tuple[str, Element]]:
         """Resolve the pending_xref ``node`` with the given ``target``.
 
         The reference comes from an "any" or similar role,
@@ -990,7 +980,7 @@ class GraphQLDomain(Domain):
         """
         return []
 
-    def get_objects(self) -> Iterator[Tuple[str, str, str, str, str, int]]:
+    def get_objects(self) -> Iterator[tuple[str, str, str, str, str, int]]:
         for object_type in self.object_types:
             type_data = self.data[object_type]
             for fullname, entry in list(type_data.items()):
@@ -1006,7 +996,7 @@ class GraphQLDomain(Domain):
                 )
 
     def merge_domaindata(
-        self, docnames: List[str], otherdata: Dict[str, Dict[str, ObjectEntry]]
+        self, docnames: Set[str], otherdata: dict[str, dict[str, ObjectEntry]]
     ) -> None:
         """Merge the data from multiple workers when working in parallel."""
         for typ, type_data in self.data.items():
@@ -1025,7 +1015,7 @@ class GraphQLDomain(Domain):
                     type_data[fullname] = other_entry
 
 
-def setup(app: Sphinx) -> Dict[str, bool]:
+def setup(app: Sphinx) -> dict[str, bool]:
     """Prepare the extension."""
     app.add_domain(GraphQLDomain)
 

@@ -8,8 +8,9 @@ authors = [
     {name = "Ashley Whetter", email = "ashley@awhetter.co.uk"},
 ]
 readme = "README.rst"
+license = {file = "LICENSE.rst"}
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Plugins",
     "Framework :: Sphinx :: Domain",
     "Framework :: Sphinx :: Extension",
@@ -18,35 +19,32 @@ classifiers = [
     "Natural Language :: English",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Topic :: Documentation :: Sphinx",
+    "Programming Language :: Python :: 3.13",
 ]
-requires-python = ">=3.8"
-dynamic = ["version", "description"]
+requires-python = ">=3.9"
 dependencies = [
     "graphql-core>=1.1",
     "sphinx>=4.0",
 ]
-
-[project.optional-dependencies]
-doc = [
-    "furo",
-    "sphinx",
-]
+dynamic = ["description", "version"]
 
 [project.urls]
 Source = "https://github.com/AWhetter/graphqldomain"
 Documentation = "https://graphqldomain.readthedocs.org"
 
-[tool.pylint]
-disable = "R,unused-argument"
+[tool.flit.sdist]
+include = ["tests/"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.towncrier]
 directory = "doc/changes"
 filename = "CHANGELOG.rst"
 package = "graphqldomain"
-title_format = "graphqldomain v{version} ({project_date})"
+title_format = "v{version} ({project_date})"
+underlines = ["-", "^", "\""]
