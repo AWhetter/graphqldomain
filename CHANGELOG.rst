@@ -1,8 +1,33 @@
-v0.2.0 (2023-08-30)
-===================
+Changelog
+=========
+
+Versions follow `Semantic Versioning <https://semver.org/>`_ (``<major>.<minor>.<patch>``).
+
+.. towncrier release notes start
+
+v1.0.0 (2025-02-17)
+-------------------
 
 Features
---------
+^^^^^^^^
+
+- Add support for Python 3.12 and 3.13
+
+
+Misc
+^^^^
+
+- Drop support for Python 3.8
+- Implemented automatic uploads to PyPI
+- Switch from black and pylint to ruff
+- Update development workflows to use Python 3.13
+
+
+v0.2.0 (2023-08-30)
+-------------------
+
+Features
+^^^^^^^^
 
 - Added gql:schema directive (#1).
 
@@ -23,23 +48,23 @@ Features
 
 
 Improved Documentation
-----------------------
+^^^^^^^^^^^^^^^^^^^^^^
 
 - Host documentation builds on readthedocs.
 
 
 Misc
-----
+^^^^
 
 - Switched linter from pylint to ruff.
 - Started testing in Python 3.12.
 
 
 v0.1.0 (2023-03-17)
-===================
+-------------------
 
 Features
---------
+^^^^^^^^
 
 - Initial implementation.
 
