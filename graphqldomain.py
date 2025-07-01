@@ -51,7 +51,7 @@ class OperationTypeField(TypedField):
         self,
         types: dict[str, list[Node]],
         domain: str,
-        items: tuple,  # type: ignore[type-arg]
+        items: list[tuple[str, list[Node]]],  # type: ignore[override]
         env: Optional[BuildEnvironment] = None,
         inliner: Optional[Inliner] = None,
         location: Optional[Element] = None,
@@ -67,7 +67,7 @@ class OperationTypeField(TypedField):
         fieldname = nodes.field_name("", self.label)
         bodynode = self.list_type()
         for fieldarg, value in items:
-            if value and value[0].rawsource:
+            if value and value[0].astext():
                 msg = (
                     f"optype field {fieldarg} has a description, which will be ignored"
                 )
@@ -931,7 +931,7 @@ class GraphQLDomain(Domain):
         target: str,
         node: pending_xref,
         contnode: Element,
-    ) -> Optional[Element]:
+    ) -> Optional[nodes.reference]:
         patterns = [target]
 
         # If the xref was created in the context of the schema,
@@ -970,7 +970,7 @@ class GraphQLDomain(Domain):
         target: str,
         node: pending_xref,
         contnode: Element,
-    ) -> list[tuple[str, Element]]:
+    ) -> list[tuple[str, nodes.reference]]:
         """Resolve the pending_xref ``node`` with the given ``target``.
 
         The reference comes from an "any" or similar role,
