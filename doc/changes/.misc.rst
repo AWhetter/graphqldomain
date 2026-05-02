@@ -1,0 +1,1 @@
+Fix typechecking errors for Sphinx 9

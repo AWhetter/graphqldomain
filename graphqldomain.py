@@ -850,7 +850,7 @@ class GraphQLDomain(Domain):
 
     name = "gql"
     label = "GraphQL"
-    object_types: dict[str, ObjType] = {
+    object_types: ClassVar[dict[str, ObjType]] = {
         "directive": ObjType("directive", "directive"),
         "enum": ObjType("enum", "enum"),
         "enum:value": ObjType("enum-value", "enum"),
@@ -865,7 +865,7 @@ class GraphQLDomain(Domain):
         "union": ObjType("union", "union"),
     }
 
-    directives: dict[str, type[Directive]] = {
+    directives: ClassVar[dict[str, type[Directive]]] = {
         "directive": GQLDirective,
         "enum": GQLEnum,
         "enum:value": GQLEnumValue,
@@ -883,7 +883,7 @@ class GraphQLDomain(Domain):
     # mypy complains because many types are allowed other than XRefRole.
     # However this class isn't going to be used for subclassing
     # so violating variance rules is acceptable.
-    roles: dict[str, XRefRole] = {  # type: ignore[assignment]
+    roles: ClassVar[dict[str, XRefRole]] = {  # type: ignore[assignment]
         "directive": GQLXRefRole(),
         "enum": GQLXRefRole(),
         "enum:value": GQLXRefRole(),
@@ -898,7 +898,7 @@ class GraphQLDomain(Domain):
         "union": GQLXRefRole(),
     }
 
-    initial_data: dict[str, dict[str, ObjectEntry]] = {
+    initial_data: ClassVar[dict[str, dict[str, ObjectEntry]]] = {
         "directive": {},
         "enum": {},
         "enum:value": {},
