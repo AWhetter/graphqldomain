@@ -36,8 +36,42 @@ dynamic = ["description", "version"]
 Source = "https://github.com/AWhetter/graphqldomain"
 Documentation = "https://graphqldomain.readthedocs.org"
 
+[dependency-groups]
+dev = [
+  {include-group = "test"},
+  {include-group = "format"},
+  {include-group = "lint"},
+  {include-group = "typecheck"},
+  {include-group = "doc"},
+]
+test = [
+    "beautifulsoup4",
+    "furo",
+    "pytest",
+]
+format = [
+    "ruff",
+]
+lint = [
+    "ruff",
+]
+typecheck = [
+    "mypy",
+    "types-docutils",
+]
+doc = [
+    "furo",
+    "sphinx",
+]
+release_notes = [
+    "towncrier",
+]
+
 [tool.flit.sdist]
 include = ["tests/"]
+
+[tool.mypy]
+strict = true
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
