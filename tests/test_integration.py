@@ -44,10 +44,8 @@ def builder(tmp_path_factory):
 
 
 def signature_text(soup: bs4.BeautifulSoup):
-    # Strip the anchor character off the end
-    result = soup.get_text()[:-1]
-    # Strip the leading newline character that doesn't get displayed to users
-    result = result.strip()
+    # Strip the leading newline and the anchor character off the end
+    result = "".join(x.get_text() for x in list(soup.children)[1:-1]).strip()
     # Condense double spaces created by HTML output quirks or `.get_text()` quirks
     result = re.sub("  ", " ", result)
     return result
