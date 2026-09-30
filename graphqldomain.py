@@ -1,7 +1,8 @@
 """A GraphQL domain for Sphinx."""
 
-from collections.abc import Iterable, Iterator, Sequence, Set
-from typing import ClassVar, NamedTuple, Optional
+from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Set as AbstractSet
+from typing import ClassVar, NamedTuple
 
 from docutils import nodes
 from docutils.nodes import Element, Node
@@ -18,8 +19,8 @@ from sphinx.directives import ObjectDescription
 from sphinx.domains import Domain, Index, IndexEntry, ObjType
 from sphinx.environment import BuildEnvironment
 from sphinx.roles import XRefRole
-from sphinx.util.docfields import GroupedField, TypedField
 from sphinx.util import logging
+from sphinx.util.docfields import GroupedField, TypedField
 from sphinx.util.nodes import make_refnode
 from sphinx.util.typing import OptionSpec, TextlikeNode
 
@@ -52,9 +53,9 @@ class OperationTypeField(TypedField):
         types: dict[str, list[Node]],
         domain: str,
         items: list[tuple[str, list[Node]]],  # type: ignore[override]
-        env: Optional[BuildEnvironment] = None,
-        inliner: Optional[Inliner] = None,
-        location: Optional[Element] = None,
+        env: BuildEnvironment | None = None,
+        inliner: Inliner | None = None,
+        location: Element | None = None,
     ) -> nodes.field:
         # Sphinx will allow the field to be parsed without a type.
         # That's not valid GraphQL, so use the default operation names
@@ -111,10 +112,10 @@ class OperationTypeField(TypedField):
         domain: str,
         target: str,
         innernode: type[TextlikeNode] = nodes.emphasis,
-        contnode: Optional[Node] = None,
-        env: Optional[BuildEnvironment] = None,
-        inliner: Optional[Inliner] = None,
-        location: Optional[Element] = None,
+        contnode: Node | None = None,
+        env: BuildEnvironment | None = None,
+        inliner: Inliner | None = None,
+        location: Element | None = None,
     ) -> Node:
         result = super().make_xref(
             rolename, domain, target, innernode, contnode, env, inliner, location
@@ -148,7 +149,7 @@ def type_to_xref(
     return xref
 
 
-class GQLObject(ObjectDescription[tuple[str, Optional[str]]]):
+class GQLObject(ObjectDescription[tuple[str, str | None]]):
     """The base class for any GraphQL type."""
 
     option_spec: ClassVar[OptionSpec] = {
@@ -162,10 +163,10 @@ class GQLObject(ObjectDescription[tuple[str, Optional[str]]]):
     Therefore any value of :attr:``obj_type`` must also exist in
     :attr:`GQLDomain.initial_data` and :attr:`GQLDomain.object_types`.
     """
-    parent_type: Optional[str] = None
+    parent_type: str | None = None
 
     def add_target_and_index(
-        self, name: tuple[str, Optional[str]], sig: str, signode: desc_signature
+        self, name: tuple[str, str | None], sig: str, signode: desc_signature
     ) -> None:
         node_id = signode["fullname"]
 
@@ -179,8 +180,13 @@ class GQLObject(ObjectDescription[tuple[str, Optional[str]]]):
             )
 
     def _handle_signature_directives(
-        self, signode: desc_signature, ast_nodes: Sequence[gql_ast.ConstDirectiveNode]
+        self,
+        signode: desc_signature,
+        ast_nodes: Sequence[gql_ast.ConstDirectiveNode] | None,
     ) -> None:
+        if not ast_nodes:
+            return
+
         for directive_node in ast_nodes:
             signode += addnodes.desc_sig_space()
 
@@ -191,7 +197,9 @@ class GQLObject(ObjectDescription[tuple[str, Optional[str]]]):
             self._handle_signature_const_arguments(signode, directive_node.arguments)
 
     def _handle_signature_const_arguments(
-        self, signode: desc_signature, ast_nodes: Sequence[gql_ast.ConstArgumentNode]
+        self,
+        signode: desc_signature,
+        ast_nodes: Sequence[gql_ast.ConstArgumentNode] | None,
     ) -> None:
         if not ast_nodes:
             return
@@ -213,7 +221,7 @@ class GQLObject(ObjectDescription[tuple[str, Optional[str]]]):
     def _handle_signature_input_values(
         self,
         signode: desc_signature,
-        ast_nodes: Sequence[gql_ast.InputValueDefinitionNode],
+        ast_nodes: Sequence[gql_ast.InputValueDefinitionNode] | None,
     ) -> None:
         if not ast_nodes:
             return
@@ -235,7 +243,7 @@ class GQLObject(ObjectDescription[tuple[str, Optional[str]]]):
         signode += addnodes.desc_sig_operator("", ")")
 
     def _handle_signature_default_value(
-        self, signode: desc_signature, ast_nodes: Optional[gql_ast.ConstValueNode]
+        self, signode: desc_signature, ast_nodes: gql_ast.ConstValueNode | None
     ) -> None:
         if not ast_nodes:
             return
@@ -247,7 +255,7 @@ class GQLObject(ObjectDescription[tuple[str, Optional[str]]]):
         self._handle_signature_literal(signode, ast_nodes)
 
     def _handle_signature_literal(
-        self, signode: desc_signature, ast_nodes: Optional[gql_ast.ConstValueNode]
+        self, signode: desc_signature, ast_nodes: gql_ast.ConstValueNode | None
     ) -> None:
         if isinstance(ast_nodes, gql_ast.ListValueNode):
             signode += addnodes.desc_sig_operator("", "[")
@@ -310,7 +318,7 @@ class GQLObject(ObjectDescription[tuple[str, Optional[str]]]):
 
     def _resolve_names(
         self, name: str, signode: desc_signature
-    ) -> tuple[str, Optional[str]]:
+    ) -> tuple[str, str | None]:
         """Use the parenting of objects to resolve the fullname attribute.
 
         By default an object can only be parented to a schema.
@@ -356,7 +364,7 @@ class GQLChildObject(GQLObject):
 
     def _resolve_names(
         self, name: str, signode: desc_signature
-    ) -> tuple[str, Optional[str]]:
+    ) -> tuple[str, str | None]:
         parent_name = self.env.ref_context.get(f"gql:{self.parent_type}")
         if parent_name:
             fullname = f"{parent_name}.{name}"
@@ -373,7 +381,7 @@ class GQLField(GQLChildObject):
         https://spec.graphql.org/June2018/#FieldDefinition
     """
 
-    doc_field_types = [
+    doc_field_types = [  # noqa: RUF012
         GroupedField(
             "argument",
             label="Arguments",
@@ -383,7 +391,7 @@ class GQLField(GQLChildObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> tuple[str, Optional[str]]:
+    ) -> tuple[str, str | None]:
         parser = Parser(sig, no_location=True)
         parser.expect_token(TokenKind.SOF)
         node = parser.parse_field_definition()
@@ -412,7 +420,7 @@ class GQLDirective(GQLObject):
     """
 
     obj_type = "directive"
-    doc_field_types = [
+    doc_field_types = [  # noqa: RUF012
         GroupedField(
             "argument",
             label="Arguments",
@@ -422,7 +430,7 @@ class GQLDirective(GQLObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> tuple[str, Optional[str]]:
+    ) -> tuple[str, str | None]:
         # https://spec.graphql.org/June2018/#sec-Type-System.Directives
         parser = Parser("directive " + sig, no_location=True)
         parser.expect_token(TokenKind.SOF)
@@ -465,7 +473,7 @@ class GQLEnum(GQLParentObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> tuple[str, Optional[str]]:
+    ) -> tuple[str, str | None]:
         # https://spec.graphql.org/June2018/#sec-Interfaces
         parser = Parser("enum " + sig, no_location=True)
         parser.expect_token(TokenKind.SOF)
@@ -495,7 +503,7 @@ class GQLEnumValue(GQLChildObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> tuple[str, Optional[str]]:
+    ) -> tuple[str, str | None]:
         # https://spec.graphql.org/June2018/#EnumValueDefinition
         parser = Parser(sig, no_location=True)
         parser.expect_token(TokenKind.SOF)
@@ -521,7 +529,7 @@ class GQLInput(GQLParentObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> tuple[str, Optional[str]]:
+    ) -> tuple[str, str | None]:
         # https://spec.graphql.org/June2018/#sec-Input-Objects
         parser = Parser("input " + sig, no_location=True)
         parser.expect_token(TokenKind.SOF)
@@ -551,7 +559,7 @@ class GQLInputField(GQLChildObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> tuple[str, Optional[str]]:
+    ) -> tuple[str, str | None]:
         parser = Parser(sig, no_location=True)
         parser.expect_token(TokenKind.SOF)
         node = parser.parse_input_value_def()
@@ -583,7 +591,7 @@ class GQLInterface(GQLParentObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> tuple[str, Optional[str]]:
+    ) -> tuple[str, str | None]:
         # https://spec.graphql.org/June2018/#sec-Interfaces
         parser = Parser("interface " + sig, no_location=True)
         parser.expect_token(TokenKind.SOF)
@@ -623,7 +631,7 @@ class GQLScalar(GQLObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> tuple[str, Optional[str]]:
+    ) -> tuple[str, str | None]:
         parser = Parser("scalar " + sig, no_location=True)
         parser.expect_token(TokenKind.SOF)
         node = parser.parse_scalar_type_definition()
@@ -654,7 +662,7 @@ class GQLSchema(GQLParentObject):
     }
     required_arguments = 0
     optional_arguments = 1
-    doc_field_types = [
+    doc_field_types = [  # noqa: RUF012
         OperationTypeField(
             "operationtypes",
             label="Operation types",
@@ -672,7 +680,7 @@ class GQLSchema(GQLParentObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> tuple[str, Optional[str]]:
+    ) -> tuple[str, str | None]:
         prefix = [nodes.Text("schema"), addnodes.desc_sig_space()]
         signode += addnodes.desc_annotation(str(prefix), "", *prefix)
 
@@ -701,7 +709,7 @@ class GQLType(GQLParentObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> tuple[str, Optional[str]]:
+    ) -> tuple[str, str | None]:
         # https://spec.graphql.org/June2018/#sec-Objects
         parser = Parser("type " + sig, no_location=True)
         parser.expect_token(TokenKind.SOF)
@@ -755,7 +763,7 @@ class GQLUnion(GQLObject):
 
     def handle_signature(
         self, sig: str, signode: desc_signature
-    ) -> tuple[str, Optional[str]]:
+    ) -> tuple[str, str | None]:
         parser = Parser("union " + sig, no_location=True)
         parser.expect_token(TokenKind.SOF)
         node = parser.parse_union_type_definition()
@@ -798,7 +806,7 @@ class GraphQLSchemaIndex(Index):
         return fullname.lower().split("(", 1)[0]
 
     def generate(
-        self, docnames: Optional[Iterable[str]] = None
+        self, docnames: Iterable[str] | None = None
     ) -> tuple[list[tuple[str, list[IndexEntry]]], bool]:
         content: dict[str, list[IndexEntry]] = {}
 
@@ -913,7 +921,7 @@ class GraphQLDomain(Domain):
         "union": {},
     }
 
-    indices = [GraphQLSchemaIndex]
+    indices: ClassVar = [GraphQLSchemaIndex]
 
     def clear_doc(self, docname: str) -> None:
         for object_type in self.object_types:
@@ -931,7 +939,7 @@ class GraphQLDomain(Domain):
         target: str,
         node: pending_xref,
         contnode: Element,
-    ) -> Optional[nodes.reference]:
+    ) -> nodes.reference | None:
         patterns = [target]
 
         # If the xref was created in the context of the schema,
@@ -996,7 +1004,7 @@ class GraphQLDomain(Domain):
                 )
 
     def merge_domaindata(
-        self, docnames: Set[str], otherdata: dict[str, dict[str, ObjectEntry]]
+        self, docnames: AbstractSet[str], otherdata: dict[str, dict[str, ObjectEntry]]
     ) -> None:
         """Merge the data from multiple workers when working in parallel."""
         for typ, type_data in self.data.items():
