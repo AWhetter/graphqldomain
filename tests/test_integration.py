@@ -53,7 +53,8 @@ def signature_text(soup: bs4.BeautifulSoup):
 
 class TestArguments:
     @pytest.fixture(scope="class")
-    def soup(self, builder):
+    @classmethod
+    def soup(cls, builder):
         builder("arguments")
         with (pathlib.Path("_build") / "html" / "index.html").open() as in_f:
             return bs4.BeautifulSoup(in_f, "html.parser")
@@ -149,7 +150,8 @@ class TestArguments:
 
 class TestDirectives:
     @pytest.fixture(scope="class")
-    def soup(self, builder):
+    @classmethod
+    def soup(cls, builder):
         builder("directives")
         with (pathlib.Path("_build") / "html" / "index.html").open() as in_f:
             return bs4.BeautifulSoup(in_f, "html.parser")
@@ -183,7 +185,8 @@ class TestDirectives:
 
 class TestEnums:
     @pytest.fixture(scope="class")
-    def soup(self, builder):
+    @classmethod
+    def soup(cls, builder):
         builder("enums")
         with (pathlib.Path("_build") / "html" / "index.html").open() as in_f:
             return bs4.BeautifulSoup(in_f, "html.parser")
@@ -212,7 +215,8 @@ class TestEnums:
 
 class TestInputs:
     @pytest.fixture(scope="class")
-    def soup(self, builder):
+    @classmethod
+    def soup(cls, builder):
         builder("inputs")
         with (pathlib.Path("_build") / "html" / "index.html").open() as in_f:
             return bs4.BeautifulSoup(in_f, "html.parser")
@@ -245,7 +249,8 @@ class TestInputs:
 
 class TestInterfaces:
     @pytest.fixture(scope="class")
-    def soup(self, builder):
+    @classmethod
+    def soup(cls, builder):
         builder("interfaces")
         with (pathlib.Path("_build") / "html" / "index.html").open() as in_f:
             return bs4.BeautifulSoup(in_f, "html.parser")
@@ -283,7 +288,8 @@ class TestInterfaces:
 
 class TestScalars:
     @pytest.fixture(scope="class")
-    def soup(self, builder):
+    @classmethod
+    def soup(cls, builder):
         builder("scalars")
         with (pathlib.Path("_build") / "html" / "index.html").open() as in_f:
             return bs4.BeautifulSoup(in_f, "html.parser")
@@ -305,7 +311,8 @@ class TestScalars:
 
 class TestSchemas:
     @pytest.fixture(scope="class")
-    def soup(self, builder):
+    @classmethod
+    def soup(cls, builder):
         builder("schemas")
         with (pathlib.Path("_build") / "html" / "index.html").open() as in_f:
             return bs4.BeautifulSoup(in_f, "html.parser")
@@ -373,7 +380,8 @@ class TestSchemas:
 
 class TestTypeObjects:
     @pytest.fixture(scope="class")
-    def soup(self, builder):
+    @classmethod
+    def soup(cls, builder):
         builder("type_objects")
         with (pathlib.Path("_build") / "html" / "index.html").open() as in_f:
             return bs4.BeautifulSoup(in_f, "html.parser")
@@ -411,7 +419,8 @@ class TestTypeObjects:
 
 class TestUnions:
     @pytest.fixture(scope="class")
-    def soup(self, builder):
+    @classmethod
+    def soup(cls, builder):
         builder("unions")
         with (pathlib.Path("_build") / "html" / "index.html").open() as in_f:
             return bs4.BeautifulSoup(in_f, "html.parser")
