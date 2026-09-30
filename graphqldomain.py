@@ -24,7 +24,7 @@ from sphinx.util.docfields import GroupedField, TypedField
 from sphinx.util.nodes import make_refnode
 from sphinx.util.typing import OptionSpec, TextlikeNode
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 LOGGER = logging.getLogger(__name__)
 DEFAULT_SCHEMA_NAME = "__gqlschema__"
 

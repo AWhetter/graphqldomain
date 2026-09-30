@@ -5,6 +5,25 @@ Versions follow `Semantic Versioning <https://semver.org/>`_ (``<major>.<minor>.
 
 .. towncrier release notes start
 
+v1.0.1 (2026-09-29)
+-------------------
+
+Bugfixes
+^^^^^^^^
+
+- Support graphql-core v3.3.0
+
+
+Misc
+^^^^
+
+- Drop Python 3.9 support and add Python 3.14 support
+- Fix deprecation warning for pytest v10
+- Fix typechecking errors for Sphinx 9
+- Switch to tox-uv runner
+- Switch to tox.toml
+
+
 v1.0.0 (2025-02-17)
 -------------------
 

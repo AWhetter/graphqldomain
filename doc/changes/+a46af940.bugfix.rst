@@ -1,1 +1,0 @@
-Support graphql-core v3.3.0
